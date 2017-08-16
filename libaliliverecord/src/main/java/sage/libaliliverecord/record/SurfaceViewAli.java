@@ -1,9 +1,11 @@
 package sage.libaliliverecord.record;
 
+import android.app.Activity;
 import android.content.Context;
-import android.os.Handler;
+import android.content.pm.ActivityInfo;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -12,7 +14,6 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-
 import com.alibaba.livecloud.live.AlivcMediaFormat;
 import com.alibaba.livecloud.live.AlivcMediaRecorder;
 import com.alibaba.livecloud.live.AlivcMediaRecorderFactory;
@@ -23,7 +24,6 @@ import com.alibaba.livecloud.live.OnNetworkStatusListener;
 import com.alibaba.livecloud.live.OnRecordStatusListener;
 import com.alibaba.livecloud.model.AlivcWatermark;
 import com.duanqu.qupai.jni.ApplicationGlue;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,7 +37,8 @@ public class SurfaceViewAli extends SurfaceView {
     static {
 
     }
-    private void loadLib(Context context){
+
+    private void loadLib(Context context) {
         System.loadLibrary("gnustl_shared");
 //        System.loadLibrary("ijkffmpeg");//目前使用微博的ijkffmpeg会出现1K再换wifi不重连的情况
         System.loadLibrary("qupai-media-thirdparty");
@@ -45,6 +46,7 @@ public class SurfaceViewAli extends SurfaceView {
         System.loadLibrary("qupai-media-jni");
         ApplicationGlue.initialize(context);
     }
+
     private GestureDetector mDetector;
     private ScaleGestureDetector mScaleDetector;
     private AlivcMediaRecorder mMediaRecorder;
@@ -85,10 +87,8 @@ public class SurfaceViewAli extends SurfaceView {
         mMediaRecorder.init(getContext());
         mMediaRecorder.addFlag(AlivcMediaFormat.FLAG_BEAUTY_ON);
 //        mDataStatistics.setReportListener(mReportListener);
-/**
- * this method only can be called after mMediaRecorder.init(),
- * otherwise will return null;
- */
+        /**this method only can be called after mMediaRecorder.init(),
+         * otherwise will return null;*/
         mRecordReporter = mMediaRecorder.getRecordReporter();
 
         mMediaRecorder.setOnRecordStatusListener(mRecordStatusListener);
@@ -101,12 +101,12 @@ public class SurfaceViewAli extends SurfaceView {
     int beautyLevel = AlivcMediaFormat.BEAUTY_LEVEL_FOUR;//1到7，美颜级别，从低到高
     int resolution = AlivcMediaFormat.OUTPUT_RESOLUTION_720P;//从0到5，分别是240,360.。。1080p
     int minBitrate = 500;
-    int maxBitrate = 800;
-    int bestBitrate = 600;
-    int initBitrate = 600;
+    int maxBitrate = 1800;
+    int bestBitrate = 1200;
+    int initBitrate = 1200;
     boolean screenOrientation = false;
     int frameRate = 30;//帧率
-    long timeOut=20000;//超时重连时间
+    long timeOut = 20000;//超时重连时间
     private AlivcWatermark mWatermark;
 
     private void initDefaultConfig() {
@@ -116,33 +116,41 @@ public class SurfaceViewAli extends SurfaceView {
         mConfigure.put(AlivcMediaFormat.KEY_OUTPUT_RESOLUTION, resolution);
         mConfigure.put(AlivcMediaFormat.KEY_MIN_VIDEO_BITRATE, minBitrate * 1000);
         mConfigure.put(AlivcMediaFormat.KEY_MAX_VIDEO_BITRATE, maxBitrate * 1000);
-        mConfigure.put(AlivcMediaFormat.KEY_BEST_VIDEO_BITRATE, bestBitrate * 1000);
+        mConfigure.put(AlivcMediaFormat.KEY_BEST_VIDEO_BITRATE, bestBitrate * 1000);//最优码率　（单位：bps）
         mConfigure.put(AlivcMediaFormat.KEY_INITIAL_VIDEO_BITRATE, initBitrate * 1000);//配置码率 500kbps
         mConfigure.put(AlivcMediaFormat.KEY_DISPLAY_ROTATION, screenOrientation ?
                 AlivcMediaFormat.DISPLAY_ROTATION_90 : AlivcMediaFormat.DISPLAY_ROTATION_0);
         mConfigure.put(AlivcMediaFormat.KEY_EXPOSURE_COMPENSATION, -1);//曝光度
-        mConfigure.put(AlivcMediaFormat.KEY_FRAME_RATE, frameRate);
+        mConfigure.put(AlivcMediaFormat.KEY_FRAME_RATE, frameRate);//帧率
         mConfigure.put(AlivcMediaFormat.KEY_RECONNECT_TIMEOUT, timeOut);
+        mConfigure.put(AlivcMediaFormat.KEY_AUDIO_BITRATE, 32*1000);//音频码率（建议设置为32000)
+        mConfigure.put(AlivcMediaFormat.KEY_AUDIO_SAMPLE_RATE, 44100);//音频采样率（建议设置为44100）
     }
 
-    public enum WaterMarkPosition {
-        TOP_RIGHT, TOP_LEFT, BOTTOM_RIGHT, BOTTOM_LEFT
-    }
 
-    /**
-     * 上右为1；上左为2；下右为3；下左为4
-     */
-    public void changeWaterMark(String url, int marginX, int marginY, WaterMarkPosition position) {
+    public void changeWaterMark(String url, int marginX, int marginY, int position) {
+//        DisplayMetrics displayMetrics=getContext().getResources().getDisplayMetrics();
+//        int screenW=displayMetrics.widthPixels;
+//        int screenH=displayMetrics.heightPixels;
+
         mWatermark = new AlivcWatermark.Builder()
                 .watermarkUrl(url)
                 .paddingX(marginX)
                 .paddingY(marginY)
-                .site(position.ordinal() + 1)
+                .site(position)
                 .build();
         if (mConfigure.containsKey(AlivcMediaFormat.KEY_WATERMARK)) {
             mConfigure.remove(AlivcMediaFormat.KEY_WATERMARK);
         }
         mConfigure.put(AlivcMediaFormat.KEY_WATERMARK, mWatermark);
+    }
+
+    public void changeOrientation(boolean screenOrientation) {
+        ((Activity) getContext()).setRequestedOrientation(screenOrientation ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        mConfigure.put(AlivcMediaFormat.KEY_DISPLAY_ROTATION, screenOrientation ?
+                AlivcMediaFormat.DISPLAY_ROTATION_90 : AlivcMediaFormat.DISPLAY_ROTATION_0);
+        if (mMediaRecorder != null)
+            mMediaRecorder.prepare(mConfigure, mPreviewSurface);
     }
 
     /**
@@ -189,20 +197,6 @@ public class SurfaceViewAli extends SurfaceView {
         }
     }
 
-    public void startPreview() {
-        if (mPreviewSurface != null) {
-            mMediaRecorder.prepare(mConfigure, mPreviewSurface);
-            mMediaRecorder.setPreviewSize(getMeasuredWidth(), getMeasuredHeight());
-            mMediaRecorder.addFlag(AlivcMediaFormat.FLAG_BEAUTY_ON);
-        }else {
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    startPreview();
-                }
-            }, 300);
-        }
-    }
 
     String pushUrl = "";//推流地址
     boolean isRecording = false;
@@ -235,19 +229,26 @@ public class SurfaceViewAli extends SurfaceView {
         public void surfaceCreated(SurfaceHolder holder) {
             holder.setKeepScreenOn(true);
             mPreviewSurface = holder.getSurface();
-
+            System.out.println("===============surfaceCreated:" + holder.getSurfaceFrame().toString());
+            if (mMediaRecorder != null) {
+                mMediaRecorder.prepare(mConfigure, mPreviewSurface);
+                mMediaRecorder.addFlag(AlivcMediaFormat.FLAG_BEAUTY_ON);
+            }
         }
 
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
             mMediaRecorder.setPreviewSize(width, height);
             mPreviewWidth = width;
             mPreviewHeight = height;
+            System.out.println("===============surfaceChanged" + width + "/" + height + "==" + format);
         }
 
         @Override
         public void surfaceDestroyed(SurfaceHolder holder) {
             mPreviewSurface = null;
+            System.out.println("===============surfaceDestroyed");
             //下面2句话取消就可以实现后台推流 但是部分手机不支持
             //mMediaRecorder.stopRecord();
             // mMediaRecorder.reset();
@@ -366,6 +367,7 @@ public class SurfaceViewAli extends SurfaceView {
                 errorResult.failed(1, "当前网络状态极差，已无法正常流畅直播，确认要继续直播吗？");
             }
         }
+
         /**
          * 网络空闲状态，此时本地推流buffer不满，数据流可正常发送
          */

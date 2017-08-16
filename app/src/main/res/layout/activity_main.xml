@@ -15,7 +15,10 @@
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-
+    <ImageView
+        android:id="@+id/iv_logo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
         <Button
             android:id="@+id/tv_push"
             android:text="开推"
@@ -41,6 +44,11 @@
             android:id="@+id/cb_camera"
             android:text="切换摄像头"
             android:checked="true"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+        <CheckBox
+            android:id="@+id/cb_orientation"
+            android:text="切换方向"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
     </LinearLayout>
